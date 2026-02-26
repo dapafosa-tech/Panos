@@ -7,6 +7,7 @@ from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 import tempfile
 from moviepy.editor import VideoFileClip, ImageClip, CompositeVideoClip
+import numpy as np  # ← ЦЕЙ РЯДОК БУВ ВІДСУТНІЙ!
 import asyncio
 
 # Налаштування логування
@@ -78,6 +79,7 @@ async def add_watermark_to_image(image_bytes: bytes) -> BytesIO:
 
 async def add_watermark_to_video(input_bytes: bytes, is_gif: bool = False) -> BytesIO:
     """Додає водяний знак до відео або GIF"""
+    global watermark_image
     
     # Створюємо тимчасові файли
     with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_input:
@@ -90,9 +92,9 @@ async def add_watermark_to_video(input_bytes: bytes, is_gif: bool = False) -> By
         # Завантажуємо відео
         video = VideoFileClip(temp_input_path)
         
-        # Створюємо водяний знак як ImageClip
-        watermark_np = np.array(watermark_image)
-        watermark_clip = ImageClip(watermark_np, ismask=False)
+        # Конвертуємо PIL Image в numpy array для moviepy
+        watermark_array = np.array(watermark_image)
+        watermark_clip = ImageClip(watermark_array, ismask=False, transparent=True)
         
         # Змінюємо розмір водяного знаку
         watermark_clip = watermark_clip.resize(height=WATERMARK_SIZE)
@@ -122,6 +124,9 @@ async def add_watermark_to_video(input_bytes: bytes, is_gif: bool = False) -> By
         
         return BytesIO(output_bytes)
         
+    except Exception as e:
+        logger.error(f"Помилка обробки відео: {e}")
+        raise e
     finally:
         # Очищаємо тимчасові файли
         try:
